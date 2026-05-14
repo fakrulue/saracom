@@ -1,0 +1,1104 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  Palette, Type, Image as ImageIcon, Home, Footprints,
+  Monitor, Smartphone, Tablet, Save, RotateCcw, Check,
+  ChevronLeft, Settings, Layers, X, Plus, Trash2,
+  ChevronDown, ChevronUp, Globe, LayoutTemplate, Eye,
+  Sliders, Store, Package
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+import { ThemeConfig, DEFAULT_CONFIG } from "@/contexts/ThemeContext";
+import { MediaManager } from "@/components/admin/MediaManager";
+import { Truck, RefreshCw, ShieldCheck, Headphones, Search, User, Heart, ShoppingBag } from "lucide-react";
+
+const ICON_MAP: Record<string, any> = { Truck, RefreshCw, ShieldCheck, Headphones };
+
+const PAGES = [
+  { id: "home", label: "Homepage", path: "/" },
+  { id: "collections", label: "Collection", path: "/collections" },
+  { id: "products", label: "Product", path: "/products" },
+  { id: "about", label: "About", path: "/pages/about" },
+  { id: "contact", label: "Contact", path: "/pages/contact" },
+  { id: "tracking", label: "Order Tracking", path: "/pages/tracking" },
+  { id: "terms", label: "Terms & Conditions", path: "/pages/terms" },
+  { id: "privacy", label: "Privacy Policy", path: "/pages/privacy" },
+];
+
+type Device = "desktop" | "tablet" | "mobile";
+
+const SITE_SECTIONS = [
+  { id: "topBanner", label: "Announcement Bar", icon: Home },
+  { id: "hero", label: "Hero Banner", icon: LayoutTemplate },
+  { id: "trustStrip", label: "Trust Strip", icon: ShieldCheck },
+  { id: "categories", label: "Category Grid", icon: Layers },
+  { id: "sale", label: "Featured Sale", icon: Package },
+  { id: "bestSellers", label: "Best Sellers", icon: Package },
+  { id: "newArrivals", label: "New Arrivals", icon: Package },
+  { id: "videoReviews", label: "Video Reviews", icon: Eye },
+  { id: "newsletter", label: "Newsletter", icon: Sliders },
+  { id: "footer", label: "Footer", icon: Footprints },
+];
+
+const ELEMENT_LIBRARY = [
+  { id: "customHtml", label: "Custom HTML", icon: Layers },
+  { id: "featuredCollection", label: "Featured Collection", icon: Package },
+  { id: "richText", label: "Rich Text", icon: Type },
+  { id: "imageBanner", label: "Image Banner", icon: ImageIcon },
+  { id: "quote", label: "Quote / Testimonial", icon: Layers },
+];
+
+const BASIC_SETTINGS = [
+  { id: "logo", label: "Logo & Identity", icon: ImageIcon },
+  { id: "header", label: "Header & Navigation", icon: Home },
+  { id: "colors", label: "Colors", icon: Palette },
+  { id: "typography", label: "Typography", icon: Type },
+  { id: "buttons", label: "Buttons & Style", icon: Layers },
+  { id: "meta", label: "Site Meta", icon: Globe },
+];
+
+export default function ThemeCustomizer() {
+  const router = useRouter();
+  const [config, setConfig] = useState<ThemeConfig>(DEFAULT_CONFIG);
+  const [device, setDevice] = useState<Device>("desktop");
+  const [saved, setSaved] = useState(false);
+  const [activePage, setActivePage] = useState(PAGES[0].id);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"sections" | "elements" | "settings">("sections");
+  const [showMedia, setShowMedia] = useState(false);
+  const [mediaTarget, setMediaTarget] = useState<string>("");
+
+  useEffect(() => {
+    const stored = localStorage.getItem("themeConfig");
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        const merged = { ...DEFAULT_CONFIG, ...parsed, sections: { ...DEFAULT_CONFIG.sections, ...(parsed.sections || {}) } };
+        setConfig(merged);
+      } catch {}
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("themeConfig", JSON.stringify(config));
+  }, [config]);
+
+  const update = (path: string, value: unknown) => {
+    setConfig((prev) => {
+      const updated = JSON.parse(JSON.stringify(prev));
+      const keys = path.split(".");
+      let obj: any = updated;
+      for (let i = 0; i < keys.length - 1; i++) obj = obj[keys[i]];
+      obj[keys[keys.length - 1]] = value;
+      return updated;
+    });
+  };
+
+  const updateSection = (section: string, key: string, value: unknown) => {
+    setConfig((prev) => ({
+      ...prev,
+      sections: {
+        ...prev.sections,
+        [section]: { ...prev.sections[section as keyof typeof prev.sections] as any, [key]: value },
+      },
+    }));
+  };
+
+  const toggleSection = (id: string) => {
+    const sec = id as keyof typeof config.sections;
+    updateSection(id, "enabled", !config.sections[sec]?.enabled);
+  };
+
+  const handleSave = () => {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleReset = () => setConfig(DEFAULT_CONFIG);
+
+  const openMedia = (target: string) => {
+    setMediaTarget(target);
+    setShowMedia(true);
+  };
+
+  const deviceWidths: Record<Device, string> = { desktop: "100%", tablet: "768px", mobile: "375px" };
+
+  const activeSetting = activeSection && !SITE_SECTIONS.find(s => s.id === activeSection) ? activeSection : null;
+
+  return (
+    <div className="flex flex-col h-screen bg-slate-100 overflow-hidden">
+      {/* Editor Header */}
+      <div className="flex items-center justify-between px-4 py-2 bg-white border-b z-50" style={{ height: 52 }}>
+        <div className="flex items-center gap-3">
+          <Link href="/admin/themes" className="flex items-center gap-1.5 text-sm text-slate-600 hover:text-slate-900 font-medium">
+            <ChevronLeft className="w-4 h-4" />
+            <Store className="w-4 h-4" />
+            <span className="hidden sm:inline">Store</span>
+          </Link>
+          <span className="text-slate-300">|</span>
+          <span className="text-sm font-bold">Theme Editor</span>
+        </div>
+        <div className="flex items-center gap-2">
+<div className="flex items-center gap-2">
+          <span className="text-xs text-slate-400 font-medium hidden sm:inline">Page:</span>
+          <select
+            value={activePage}
+            onChange={(e) => { setActivePage(e.target.value); setActiveSection(null); }}
+            className="h-8 border rounded-md px-2 text-xs font-medium bg-slate-50 hover:bg-slate-100 cursor-pointer"
+          >
+            {PAGES.map(p => (
+              <option key={p.id} value={p.id}>{p.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
+          {([["desktop", Monitor], ["tablet", Tablet], ["mobile", Smartphone]] as const).map(([d, Icon]) => (
+            <button key={d} onClick={() => setDevice(d)} className={cn("p-1.5 rounded-md transition-colors", device === d ? "bg-white shadow-sm text-slate-900" : "text-slate-400")}>
+              <Icon className="w-4 h-4" />
+            </button>
+          ))}
+        </div>
+          <Button variant="outline" size="sm" onClick={handleReset} className="gap-1.5 h-8 text-xs">
+            <RotateCcw className="w-3 h-3" /> Reset
+          </Button>
+          <Button size="sm" onClick={handleSave} className={cn("gap-1.5 h-8 text-xs", saved && "bg-emerald-600")}>
+            {saved ? <><Check className="w-3 h-3" /> Saved</> : <><Save className="w-3 h-3" /> Save</>}
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Sidebar */}
+        <div className="w-72 bg-white border-r flex flex-col overflow-hidden">
+          {/* Tab Switcher */}
+          <div className="flex border-b">
+            <button onClick={() => { setActiveTab("sections"); setActiveSection(null); }} className={cn("flex-1 py-3 text-xs font-bold transition-colors border-b-2", activeTab === "sections" ? "border-slate-900 text-slate-900" : "border-transparent text-slate-400")}>
+              Sections
+            </button>
+            <button onClick={() => { setActiveTab("elements"); setActiveSection(null); }} className={cn("flex-1 py-3 text-xs font-bold transition-colors border-b-2", activeTab === "elements" ? "border-slate-900 text-slate-900" : "border-transparent text-slate-400")}>
+              Elements
+            </button>
+            <button onClick={() => { setActiveTab("settings"); setActiveSection(null); }} className={cn("flex-1 py-3 text-xs font-bold transition-colors border-b-2", activeTab === "settings" ? "border-slate-900 text-slate-900" : "border-transparent text-slate-400")}>
+              Settings
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto">
+            {activeTab === "sections" && (
+              <div className="p-3">
+                {activePage === "home" ? (
+                  <>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Homepage Sections</p>
+                    <div className="space-y-0.5">
+                      {SITE_SECTIONS.map((s) => {
+                        const isEnabled = config.sections[s.id as keyof typeof config.sections]?.enabled !== false;
+                        return (
+                          <div key={s.id} className="flex items-center gap-2">
+                            <button
+                              onClick={() => { setActiveSection(s.id); setActiveTab("settings"); }}
+                              className={cn("flex-1 flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors", activeSection === s.id ? "bg-slate-900 text-white" : "hover:bg-slate-50 text-slate-700")}
+                            >
+                              <s.icon className="w-4 h-4 flex-shrink-0" />
+                              <span className="flex-1 text-left text-xs font-medium">{s.label}</span>
+                            </button>
+                            <button
+                              onClick={() => toggleSection(s.id)}
+                              className={cn("w-6 h-6 rounded text-[10px] font-bold flex items-center justify-center transition-colors", isEnabled ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400")}
+                              title={isEnabled ? "Disable section" : "Enable section"}
+                            >
+                              {isEnabled ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Page Layout</p>
+                    <div className="space-y-0.5">
+                      <button
+                        onClick={() => { setActiveSection(activePage); setActiveTab("settings"); }}
+                        className={cn("w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors", activeSection === activePage ? "bg-slate-900 text-white" : "hover:bg-slate-50 text-slate-700")}
+                      >
+                        <LayoutTemplate className="w-4 h-4 flex-shrink-0" />
+                        <span className="text-xs font-medium">{PAGES.find(p => p.id === activePage)?.label} Layout</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {activeTab === "elements" && (
+              <div className="p-3">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Add Elements</p>
+                <div className="space-y-1">
+                  {ELEMENT_LIBRARY.map((el) => (
+                    <button key={el.id} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                      <el.icon className="w-4 h-4" />
+                      <span className="text-xs font-medium">{el.label}</span>
+                      <Plus className="w-3 h-3 ml-auto opacity-50" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === "settings" && (
+              <div className="p-3">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Basic Settings</p>
+                <div className="space-y-1">
+                  {BASIC_SETTINGS.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => setActiveSection(s.id)}
+                      className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors", activeSection === s.id ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")}
+                    >
+                      <s.icon className="w-4 h-4" />
+                      <span className="text-xs font-medium">{s.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Preview Area (Middle) */}
+        <div className="flex-1 bg-slate-200 flex items-center justify-center overflow-auto p-6">
+          <div className="bg-white shadow-2xl transition-all duration-300" style={{ width: deviceWidths[device], maxWidth: "100%" }}>
+            <StorefrontPreview key={activePage} config={config} activeSection={activeSection} onSelectSection={(id) => { setActiveSection(id); setActiveTab("settings"); }} activePage={activePage} />
+          </div>
+        </div>
+
+        {/* Right Sidebar - Section Options */}
+        <div className="w-80 bg-white border-l flex flex-col overflow-hidden">
+          <div className="px-4 py-3 border-b flex items-center justify-between">
+            <h3 className="text-sm font-bold">
+              {activeSection ? getSectionLabel(activeSection, SITE_SECTIONS, BASIC_SETTINGS) : "Select a section"}
+            </h3>
+            {activeSection && (
+              <button onClick={() => setActiveSection(null)} className="p-1 hover:bg-slate-100 rounded">
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            {!activeSection && (
+              <div className="text-center py-12 text-slate-400">
+                <LayoutTemplate className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">Click a section in the preview or select from the left panel to edit</p>
+              </div>
+            )}
+            {activeSection === "logo" && <LogoSettings config={config} update={update} openMedia={openMedia} />}
+            {activeSection === "header" && <HeaderSettings config={config} updateSection={updateSection} />}
+            {activeSection === "colors" && <ColorsSettings config={config} update={update} />}
+            {activeSection === "typography" && <TypographySettings config={config} update={update} />}
+            {activeSection === "buttons" && <ButtonsSettings config={config} update={update} />}
+            {activeSection === "meta" && <MetaSettings config={config} update={update} />}
+            {activeSection === "topBanner" && <TopBannerSettings config={config} updateSection={updateSection} />}
+            {activeSection === "hero" && <HeroSettings config={config} updateSection={updateSection} />}
+            {activeSection === "trustStrip" && <TrustStripSettings config={config} updateSection={updateSection} />}
+            {activeSection === "categories" && <CategoriesSettings config={config} updateSection={updateSection} />}
+            {activeSection === "sale" && <SectionTitleSettings label="Featured Sale" config={config} section="sale" updateSection={updateSection} />}
+            {activeSection === "bestSellers" && <SectionTitleSettings label="Best Sellers" config={config} section="bestSellers" updateSection={updateSection} />}
+            {activeSection === "newArrivals" && <SectionTitleSettings label="New Arrivals" config={config} section="newArrivals" updateSection={updateSection} />}
+            {activeSection === "videoReviews" && <SectionToggleSettings label="Video Reviews" config={config} section="videoReviews" updateSection={updateSection} />}
+            {activeSection === "newsletter" && <NewsletterSettings config={config} updateSection={updateSection} />}
+            {activeSection === "footer" && <FooterSettings config={config} updateSection={updateSection} />}
+            {activePage !== "home" && activeSection === activePage && (
+              <div className="space-y-4">
+                <p className="text-xs font-bold text-slate-500">Customize this page layout</p>
+                <p className="text-xs text-slate-400">Page layout customization coming soon. Configure content from <Link href="/admin/content/pages" className="text-pink-500 hover:underline">Content &gt; Pages</Link>.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {showMedia && (
+        <MediaManager
+          onSelect={(url) => {
+            if (mediaTarget === "logo") update("logo.imageUrl", url);
+            setShowMedia(false);
+          }}
+          onClose={() => setShowMedia(false)}
+          selectedUrl={mediaTarget === "logo" ? (config.logo.imageUrl ?? undefined) : undefined}
+        />
+      )}
+    </div>
+  );
+}
+
+function getSectionLabel(id: string, sections: any[], settings: any[]) {
+  const page = PAGES.find(p => p.id === id);
+  if (page) return page.label + " Layout";
+  const found = sections.find(s => s.id === id) || settings.find(s => s.id === id);
+  return found ? found.label : id;
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-medium text-slate-500">{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+function ColorsSettings({ config, update }: { config: ThemeConfig; update: (path: string, v: unknown) => void }) {
+  const colors = [
+    { key: "primary", label: "Primary Color" },
+    { key: "accent", label: "Accent Color" },
+    { key: "background", label: "Background" },
+    { key: "text", label: "Text Color" },
+    { key: "secondaryBg", label: "Section Background" },
+  ];
+  return (
+    <div className="space-y-4">
+      {colors.map((c) => (
+        <div key={c.key} className="space-y-1.5">
+          <Label className="text-xs font-medium text-slate-500">{c.label}</Label>
+          <div className="flex gap-2">
+            <div className="w-10 h-10 rounded-lg border overflow-hidden flex-shrink-0">
+              <input type="color" value={config.colors[c.key as keyof typeof config.colors]} onChange={(e) => update(`colors.${c.key}`, e.target.value)} className="w-12 h-12 border-0 cursor-pointer p-0" />
+            </div>
+            <Input value={config.colors[c.key as keyof typeof config.colors]} onChange={(e) => update(`colors.${c.key}`, e.target.value)} className="flex-1 font-mono text-xs" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TypographySettings({ config, update }: { config: ThemeConfig; update: (path: string, v: unknown) => void }) {
+  const FONTS = ["Playfair Display", "Inter", "Poppins", "Lora", "Merriweather", "Montserrat", "Nunito", "Open Sans", "Roboto", "Source Sans Pro", "Oswald", "Raleway"];
+  return (
+    <div className="space-y-6">
+      <div className="space-y-3">
+        <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Headings</Label>
+        <Field label="Heading Font">
+          <select value={config.typography.headingFont} onChange={(e) => update("typography.headingFont", e.target.value)} className="w-full h-9 border rounded-md px-3 text-sm bg-white">
+            {FONTS.map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
+        </Field>
+        <Field label="Heading Size">
+          <div className="flex items-center gap-3">
+            <input type="range" min="24" max="72" value={config.typography.headingSize} onChange={(e) => update("typography.headingSize", e.target.value)} className="flex-1" />
+            <span className="text-xs font-mono w-10 text-right">{config.typography.headingSize}px</span>
+          </div>
+        </Field>
+        <div className="p-3 bg-slate-50 rounded-lg" style={{ fontFamily: `"${config.typography.headingFont}", serif`, fontSize: Math.min(Number(config.typography.headingSize), 36) }}>
+          The quick brown fox
+        </div>
+      </div>
+      <div className="space-y-3">
+        <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Body</Label>
+        <Field label="Body Font">
+          <select value={config.typography.bodyFont} onChange={(e) => update("typography.bodyFont", e.target.value)} className="w-full h-9 border rounded-md px-3 text-sm bg-white">
+            {FONTS.map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
+        </Field>
+        <Field label="Body Size">
+          <div className="flex items-center gap-3">
+            <input type="range" min="12" max="20" value={config.typography.bodySize} onChange={(e) => update("typography.bodySize", e.target.value)} className="flex-1" />
+            <span className="text-xs font-mono w-10 text-right">{config.typography.bodySize}px</span>
+          </div>
+        </Field>
+        <div className="p-3 bg-slate-50 rounded-lg" style={{ fontFamily: config.typography.bodyFont, fontSize: Number(config.typography.bodySize) }}>
+          The quick brown fox jumps over the lazy dog.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ButtonsSettings({ config, update }: { config: ThemeConfig; update: (path: string, v: unknown) => void }) {
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-slate-400">Button styling is derived from your color palette. Configure primary and text colors to customize button appearance.</p>
+      <div className="p-4 border rounded-lg space-y-3">
+        <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Preview</Label>
+        <div className="flex gap-3">
+          <button className="rounded-full px-5 py-2.5 text-sm font-bold text-white" style={{ background: config.colors.primary }}>
+            Primary Button
+          </button>
+          <button className="rounded-full px-5 py-2.5 text-sm font-bold border-2" style={{ borderColor: config.colors.text, color: config.colors.text }}>
+            Secondary
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MetaSettings({ config, update }: { config: ThemeConfig; update: (path: string, v: unknown) => void }) {
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-slate-400">Site metadata settings are configured in the general store settings.</p>
+      <Field label="Store Name">
+        <Input value={config.logo.text} onChange={(e) => update("logo.text", e.target.value)} />
+      </Field>
+      <Field label="Footer Copyright">
+        <Input value={config.sections.footer.copyrightText} onChange={(e) => update("sections.footer.copyrightText", e.target.value)} />
+      </Field>
+    </div>
+  );
+}
+
+function LogoSettings({ config, update, openMedia }: { config: ThemeConfig; update: (path: string, v: unknown) => void; openMedia: (t: string) => void }) {
+  return (
+    <div className="space-y-6">
+      <div className="space-y-3">
+        <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Logo Image</Label>
+        <div onClick={() => openMedia("logo")} className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-slate-400 cursor-pointer transition-colors">
+          {config.logo.imageUrl ? (
+            <img src={config.logo.imageUrl} alt="Logo" className="h-12 mx-auto object-contain" />
+          ) : (
+            <div>
+              <ImageIcon className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+              <p className="text-xs font-medium">Click to upload</p>
+              <p className="text-[10px] text-slate-400">PNG, JPG, SVG</p>
+            </div>
+          )}
+        </div>
+        {config.logo.imageUrl && (
+          <button onClick={() => update("logo.imageUrl", null)} className="w-full text-xs text-red-500 py-1.5 border border-red-200 rounded-lg hover:bg-red-50">Remove image</button>
+        )}
+      </div>
+      <Field label="Logo Text (fallback)">
+        <Input value={config.logo.text} onChange={(e) => update("logo.text", e.target.value)} />
+      </Field>
+      <Field label="Logo Width">
+        <div className="flex items-center gap-3">
+          <input type="range" min="60" max="300" value={config.logo.width} onChange={(e) => update("logo.width", Number(e.target.value))} className="flex-1" />
+          <span className="text-xs font-mono w-12 text-right">{config.logo.width}px</span>
+        </div>
+      </Field>
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" checked={config.logo.showTagline} onChange={(e) => update("logo.showTagline", e.target.checked)} className="w-4 h-4 rounded" />
+        <span className="text-xs font-medium">Show tagline below logo</span>
+      </label>
+    </div>
+  );
+}
+
+function HeaderSettings({ config, updateSection }: { config: ThemeConfig; updateSection: (s: string, k: string, v: unknown) => void }) {
+  const s = config.sections.header;
+  return (
+    <div className="space-y-6">
+      <div className="p-3 bg-slate-50 rounded-lg border">
+        <p className="text-xs text-slate-500">Header includes logo, navigation menu, search, account, wishlist and cart icons.</p>
+      </div>
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" checked={s.enabled} onChange={(e) => updateSection("header", "enabled", e.target.checked)} className="w-4 h-4 rounded" />
+        <span className="text-xs font-bold">Show header</span>
+      </label>
+
+      {/* Live Header Preview */}
+      <div className="p-3 border rounded-xl" style={{ background: config.colors.background }}>
+        <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Header Preview</Label>
+        <div className="flex items-center justify-between gap-4 px-4 py-3 border-b" style={{ borderColor: `${config.colors.text}15` }}>
+          <div className="flex items-center gap-2">
+            {config.logo.imageUrl ? (
+              <img src={config.logo.imageUrl} alt="Logo" style={{ maxWidth: config.logo.width * 0.5, height: "auto" }} className="object-contain" />
+            ) : (
+              <span className="font-extrabold tracking-tight" style={{ fontFamily: `"${config.typography.headingFont}", serif`, fontSize: Math.max(config.logo.width / 10, 12), color: config.colors.primary }}>{config.logo.text}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            {s.showSearch && <button className="p-1" style={{ color: config.colors.text }}><Search className="w-4 h-4" /></button>}
+            {s.showAccount && <button className="p-1" style={{ color: config.colors.text }}><User className="w-4 h-4" /></button>}
+            {s.showWishlist && <button className="p-1" style={{ color: config.colors.text }}><Heart className="w-4 h-4" /></button>}
+            <button className="relative p-1" style={{ color: config.colors.text }}>
+              <ShoppingBag className="w-4 h-4" />
+              <span className="absolute -top-0.5 -right-0.5 grid h-4 w-4 place-items-center rounded-full text-[7px] font-bold text-white" style={{ background: config.colors.primary }}>0</span>
+            </button>
+          </div>
+        </div>
+        <div className="flex gap-3 px-4 py-2">
+          {["New Arrival", "Best Seller", "Baby Boys", "Sale"].map(l => (
+            <span key={l} className="text-[9px] font-bold" style={{ color: config.colors.text }}>{l}</span>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Header Icons</Label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={s.showSearch} onChange={(e) => updateSection("header", "showSearch", e.target.checked)} className="w-4 h-4 rounded" />
+          <span className="text-xs font-medium">Show Search icon</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={s.showAccount} onChange={(e) => updateSection("header", "showAccount", e.target.checked)} className="w-4 h-4 rounded" />
+          <span className="text-xs font-medium">Show Account icon</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={s.showWishlist} onChange={(e) => updateSection("header", "showWishlist", e.target.checked)} className="w-4 h-4 rounded" />
+          <span className="text-xs font-medium">Show Wishlist icon</span>
+        </label>
+      </div>
+      <div className="space-y-3">
+        <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Navigation Menu</Label>
+        <p className="text-[10px] text-slate-400">Navigation links are managed in the Content → Navigation section.</p>
+        <div className="p-3 bg-slate-50 rounded-lg space-y-1.5">
+          {["New Arrival", "Best Seller", "Baby Boys", "Baby Girls", "Kids Boys", "Kids Girls", "Sale"].map((item) => (
+            <div key={item} className="flex items-center justify-between text-xs text-slate-600">
+              <span>{item}</span>
+              <span className="text-[10px] text-slate-400">/collections/{item.toLowerCase().replace(" ", "-")}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TopBannerSettings({ config, updateSection }: { config: ThemeConfig; updateSection: (s: string, k: string, v: unknown) => void }) {
+  const s = config.sections.topBanner;
+  return (
+    <div className="space-y-4">
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" checked={s.enabled} onChange={(e) => updateSection("topBanner", "enabled", e.target.checked)} className="w-4 h-4 rounded" />
+        <span className="text-xs font-bold">Show announcement bar</span>
+      </label>
+      <Field label="Banner Text">
+        <Input value={s.text} onChange={(e) => updateSection("topBanner", "text", e.target.value)} />
+      </Field>
+      <Field label="Link URL">
+        <Input value={s.link} onChange={(e) => updateSection("topBanner", "link", e.target.value)} />
+      </Field>
+    </div>
+  );
+}
+
+function HeroSettings({ config, updateSection }: { config: ThemeConfig; updateSection: (s: string, k: string, v: unknown) => void }) {
+  const s = config.sections.hero as any;
+  const [showMedia, setShowMedia] = useState(false);
+  const [mediaTarget, setMediaTarget] = useState("");
+
+  const openMedia = (target: string) => { setMediaTarget(target); setShowMedia(true); };
+
+  return (
+    <>
+      <div className="space-y-4">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={s.enabled} onChange={(e) => updateSection("hero", "enabled", e.target.checked)} className="w-4 h-4 rounded" />
+          <span className="text-xs font-bold">Show hero section</span>
+        </label>
+        <Field label="Badge Text">
+          <Input value={s.badge} onChange={(e) => updateSection("hero", "badge", e.target.value)} />
+        </Field>
+        <Field label="Title">
+          <Input value={s.title} onChange={(e) => updateSection("hero", "title", e.target.value)} />
+        </Field>
+        <Field label="Subtitle">
+          <Input value={s.subtitle} onChange={(e) => updateSection("hero", "subtitle", e.target.value)} />
+        </Field>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Button 1 Text"><Input value={s.ctaText} onChange={(e) => updateSection("hero", "ctaText", e.target.value)} /></Field>
+          <Field label="Button 1 Link"><Input value={s.ctaLink} onChange={(e) => updateSection("hero", "ctaLink", e.target.value)} /></Field>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Button 2 Text"><Input value={s.cta2Text} onChange={(e) => updateSection("hero", "cta2Text", e.target.value)} /></Field>
+          <Field label="Button 2 Link"><Input value={s.cta2Link} onChange={(e) => updateSection("hero", "cta2Link", e.target.value)} /></Field>
+        </div>
+
+        {/* Main Image */}
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium text-slate-500">Main Hero Image</Label>
+          <p className="text-[10px] text-slate-400">Recommended: 1600 x 800px (aspect ratio 2:1)</p>
+          <div onClick={() => openMedia("hero_image")} className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:border-slate-400 cursor-pointer transition-colors">
+            {s.imageUrl ? (
+              <div className="relative">
+                <img src={s.imageUrl} alt={s.imageAlt || ""} className="h-24 mx-auto object-contain rounded-lg" />
+                <p className="text-[10px] text-slate-400 mt-1">Click to change image</p>
+              </div>
+            ) : (
+              <div>
+                <ImageIcon className="w-6 h-6 mx-auto mb-1 text-slate-300" />
+                <p className="text-xs text-slate-400">Click to upload</p>
+              </div>
+            )}
+          </div>
+          {s.imageUrl && (
+            <button onClick={() => { updateSection("hero", "imageUrl", ""); updateSection("hero", "imageAlt", ""); }} className="text-[10px] text-red-500 hover:text-red-600 underline">Remove image</button>
+          )}
+        </div>
+
+        {/* Secondary Image */}
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium text-slate-500">Secondary Image (Float)</Label>
+          <p className="text-[10px] text-slate-400">Recommended: 400 x 400px (square)</p>
+          <div onClick={() => openMedia("hero_secondary_image")} className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:border-slate-400 cursor-pointer transition-colors">
+            {s.secondaryImageUrl ? (
+              <div className="relative">
+                <img src={s.secondaryImageUrl} alt={s.secondaryImageAlt || ""} className="h-20 mx-auto object-contain rounded-lg" />
+                <p className="text-[10px] text-slate-400 mt-1">Click to change</p>
+              </div>
+            ) : (
+              <div>
+                <ImageIcon className="w-6 h-6 mx-auto mb-1 text-slate-300" />
+                <p className="text-xs text-slate-400">Click to upload</p>
+              </div>
+            )}
+          </div>
+          {s.secondaryImageUrl && (
+            <button onClick={() => { updateSection("hero", "secondaryImageUrl", ""); updateSection("hero", "secondaryImageAlt", ""); }} className="text-[10px] text-red-500 hover:text-red-600 underline">Remove image</button>
+          )}
+        </div>
+      </div>
+
+      {showMedia && (
+        <MediaManager
+          onSelect={(url) => {
+            if (mediaTarget === "hero_image") { updateSection("hero", "imageUrl", url); updateSection("hero", "imageAlt", "Hero main image"); }
+            if (mediaTarget === "hero_secondary_image") { updateSection("hero", "secondaryImageUrl", url); updateSection("hero", "secondaryImageAlt", "Hero secondary image"); }
+            setShowMedia(false);
+          }}
+          onClose={() => setShowMedia(false)}
+          selectedUrl={mediaTarget === "hero_image" ? (s.imageUrl || undefined) : (s.secondaryImageUrl || undefined)}
+        />
+      )}
+    </>
+  );
+}
+
+function TrustStripSettings({ config, updateSection }: { config: ThemeConfig; updateSection: (s: string, k: string, v: unknown) => void }) {
+  const s = config.sections.trustStrip;
+  const TRUST_ICONS = ["Truck", "RefreshCw", "ShieldCheck", "Headphones"];
+  return (
+    <div className="space-y-4">
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" checked={s.enabled} onChange={(e) => updateSection("trustStrip", "enabled", e.target.checked)} className="w-4 h-4 rounded" />
+        <span className="text-xs font-bold">Show trust strip</span>
+      </label>
+      <div className="space-y-2">
+        {s.items.map((item: any, i: number) => (
+          <div key={i} className="p-3 border rounded-lg space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Item {i + 1}</span>
+            </div>
+            <select value={item.icon} onChange={(e) => { const items = [...s.items]; items[i] = { ...items[i], icon: e.target.value }; updateSection("trustStrip", "items", items); }} className="w-full h-8 border rounded-md px-2 text-xs bg-white">
+              {TRUST_ICONS.map(icon => <option key={icon} value={icon}>{icon}</option>)}
+            </select>
+            <Input placeholder="Title" value={item.title} onChange={(e) => { const items = [...s.items]; items[i] = { ...items[i], title: e.target.value }; updateSection("trustStrip", "items", items); }} className="text-xs" />
+            <Input placeholder="Subtitle" value={item.subtitle} onChange={(e) => { const items = [...s.items]; items[i] = { ...items[i], subtitle: e.target.value }; updateSection("trustStrip", "items", items); }} className="text-xs" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CategoriesSettings({ config, updateSection }: { config: ThemeConfig; updateSection: (s: string, k: string, v: unknown) => void }) {
+  const s = config.sections.categories;
+  const [storeCollections, setStoreCollections] = useState<{id: string; handle: string; title: string}[]>([]);
+
+  useEffect(() => {
+    fetch("/api/v1/collections")
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d.data)) setStoreCollections(d.data); else if (Array.isArray(d)) setStoreCollections(d); })
+      .catch(() => {});
+  }, []);
+
+  const toggleCollection = (col: { id: string; handle: string; title: string }) => {
+    const exists = s.collections.find(c => c.id === col.id);
+    if (exists) {
+      updateSection("categories", "collections", s.collections.filter(c => c.id !== col.id));
+    } else {
+      updateSection("categories", "collections", [...s.collections, { id: col.id, handle: col.handle, name: col.title }]);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" checked={s.enabled} onChange={(e) => updateSection("categories", "enabled", e.target.checked)} className="w-4 h-4 rounded" />
+        <span className="text-xs font-bold">Show categories</span>
+      </label>
+      <Field label="Section Title"><Input value={s.title} onChange={(e) => updateSection("categories", "title", e.target.value)} /></Field>
+      <Field label="Section Subtitle"><Input value={s.subtitle} onChange={(e) => updateSection("categories", "subtitle", e.target.value)} /></Field>
+      <Field label="Columns">
+        <select value={s.columns} onChange={(e) => updateSection("categories", "columns", Number(e.target.value))} className="w-full h-9 border rounded-md px-3 text-sm bg-white">
+          <option value="3">3 columns</option>
+          <option value="4">4 columns</option>
+          <option value="6">6 columns</option>
+        </select>
+      </Field>
+      <div className="space-y-1.5">
+        <Label className="text-xs font-medium text-slate-500">Select Collections</Label>
+        <p className="text-[10px] text-slate-400">Choose which collections to display. Leave empty to show all.</p>
+        <div className="max-h-48 overflow-y-auto border rounded-lg p-2 space-y-1">
+          {storeCollections.length === 0 && (
+            <p className="text-xs text-slate-400 text-center py-2">No collections found</p>
+          )}
+          {storeCollections.map((col) => {
+            const selected = s.collections.find(c => c.id === col.id);
+            return (
+              <button
+                key={col.id}
+                onClick={() => toggleCollection(col)}
+                className={cn("w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors text-left", selected ? "bg-slate-900 text-white" : "hover:bg-slate-50 text-slate-700")}
+              >
+                <div className={cn("w-4 h-4 rounded border flex items-center justify-center flex-shrink-0", selected ? "bg-white border-white" : "border-slate-300")}>
+                  {selected && <Check className="w-2.5 h-2.5 text-slate-900" />}
+                </div>
+                <span className="flex-1">{col.title}</span>
+                <span className="text-[10px] opacity-50">{col.handle}</span>
+              </button>
+            );
+          })}
+        </div>
+        {s.collections.length > 0 && (
+          <button onClick={() => updateSection("categories", "collections", [])} className="text-[10px] text-slate-400 hover:text-red-500 underline">
+            Clear all selections
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SectionTitleSettings({ label, config, section, updateSection }: { label: string; config: ThemeConfig; section: string; updateSection: (s: string, k: string, v: unknown) => void }) {
+  const s = config.sections[section as keyof typeof config.sections] as any;
+  const [storeCollections, setStoreCollections] = useState<{id: string; handle: string; title: string}[]>([]);
+
+  useEffect(() => {
+    fetch("/api/v1/collections")
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d.data)) setStoreCollections(d.data); else if (Array.isArray(d)) setStoreCollections(d); })
+      .catch(() => {});
+  }, []);
+
+  const selectable = section === "sale" || section === "bestSellers" || section === "newArrivals";
+
+  return (
+    <div className="space-y-4">
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" checked={s?.enabled !== false} onChange={(e) => updateSection(section, "enabled", e.target.checked)} className="w-4 h-4 rounded" />
+        <span className="text-xs font-bold">Show {label.toLowerCase()}</span>
+      </label>
+      <Field label="Section Title"><Input value={s?.title || ""} onChange={(e) => updateSection(section, "title", e.target.value)} /></Field>
+      <Field label="Section Subtitle"><Input value={s?.subtitle || ""} onChange={(e) => updateSection(section, "subtitle", e.target.value)} /></Field>
+      {selectable && (
+        <Field label="Show Products From Collection">
+          <select
+            value={s?.collectionHandle || ""}
+            onChange={(e) => {
+              const col = storeCollections.find(c => c.handle === e.target.value);
+              updateSection(section, "collectionHandle", e.target.value);
+              updateSection(section, "collectionTitle", col?.title || "");
+            }}
+            className="w-full h-9 border rounded-md px-3 text-sm bg-white"
+          >
+            <option value="">— Select a collection —</option>
+            {storeCollections.map((col) => (
+              <option key={col.id} value={col.handle}>{col.title}</option>
+            ))}
+          </select>
+          {s?.collectionHandle && (
+            <button onClick={() => { updateSection(section, "collectionHandle", ""); updateSection(section, "collectionTitle", ""); }} className="text-[10px] text-slate-400 hover:text-red-500 underline mt-1">
+              Clear selection
+            </button>
+          )}
+        </Field>
+      )}
+    </div>
+  );
+}
+
+function SectionToggleSettings({ label, config, section, updateSection }: { label: string; config: ThemeConfig; section: string; updateSection: (s: string, k: string, v: unknown) => void }) {
+  const s = config.sections[section as keyof typeof config.sections] as any;
+  return (
+    <div className="space-y-4">
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" checked={s?.enabled !== false} onChange={(e) => updateSection(section, "enabled", e.target.checked)} className="w-4 h-4 rounded" />
+        <span className="text-xs font-bold">Show {label.toLowerCase()}</span>
+      </label>
+    </div>
+  );
+}
+
+function NewsletterSettings({ config, updateSection }: { config: ThemeConfig; updateSection: (s: string, k: string, v: unknown) => void }) {
+  const s = config.sections.newsletter;
+  return (
+    <div className="space-y-4">
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" checked={s.enabled} onChange={(e) => updateSection("newsletter", "enabled", e.target.checked)} className="w-4 h-4 rounded" />
+        <span className="text-xs font-bold">Show newsletter</span>
+      </label>
+      <Field label="Section Title"><Input value={s.title} onChange={(e) => updateSection("newsletter", "title", e.target.value)} /></Field>
+      <Field label="Section Subtitle"><Input value={s.subtitle} onChange={(e) => updateSection("newsletter", "subtitle", e.target.value)} /></Field>
+    </div>
+  );
+}
+
+function FooterSettings({ config, updateSection }: { config: ThemeConfig; updateSection: (s: string, k: string, v: unknown) => void }) {
+  const s = config.sections.footer;
+  return (
+    <div className="space-y-4">
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" checked={s.showSocial} onChange={(e) => updateSection("footer", "showSocial", e.target.checked)} className="w-4 h-4 rounded" />
+        <span className="text-xs font-medium">Show social links</span>
+      </label>
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" checked={s.showNewsletter} onChange={(e) => updateSection("footer", "showNewsletter", e.target.checked)} className="w-4 h-4 rounded" />
+        <span className="text-xs font-medium">Show newsletter</span>
+      </label>
+      <Field label="Copyright Text">
+        <Input value={s.copyrightText} onChange={(e) => updateSection("footer", "copyrightText", e.target.value)} />
+      </Field>
+      <div className="space-y-2">
+        <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Footer Columns</Label>
+        {s.columns.map((col: any, i: number) => (
+          <div key={i} className="p-3 border rounded-lg space-y-2">
+            <Input placeholder="Column Title" value={col.title} onChange={(e) => { const cols = [...s.columns]; cols[i] = { ...cols[i], title: e.target.value }; updateSection("footer", "columns", cols); }} className="text-xs" />
+            <div className="flex flex-wrap gap-1">
+              {col.links.map((link: string, j: number) => (
+                <span key={j} className="text-[10px] bg-slate-100 px-2 py-0.5 rounded flex items-center gap-1">
+                  {link}
+                  <button onClick={() => { const cols = [...s.columns]; cols[i] = { ...cols[i], links: cols[i].links.filter((_: any, k: number) => k !== j) }; updateSection("footer", "columns", cols); }} className="text-slate-400 hover:text-red-500">
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <Input
+              placeholder="Add link, press Enter"
+              className="text-xs"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && e.currentTarget.value) {
+                  const cols = [...s.columns];
+                  cols[i] = { ...cols[i], links: [...cols[i].links, e.currentTarget.value] };
+                  updateSection("footer", "columns", cols);
+                  e.currentTarget.value = "";
+                }
+              }}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StorefrontPreview({ config, activeSection, onSelectSection, activePage }: { config: ThemeConfig; activeSection: string | null; onSelectSection: (s: string) => void; activePage: string }) {
+  const { colors, typography, sections } = config;
+  const p = colors.primary, a = colors.accent, t = colors.text, sb = colors.secondaryBg;
+  const hf = `"${typography.headingFont}", serif`;
+  const hs = Math.min(Number(typography.headingSize), 60);
+  const hsm = Math.min(Number(typography.headingSize) * 0.65, 44);
+
+  const sec = (id: string) => (sections[id as keyof typeof sections] as any) || {};
+  const isEnabled = (id: string) => sec(id)?.enabled !== false;
+
+  const Section = ({ id, children }: { id: string; children: React.ReactNode }) => (
+    <div
+      className={cn("relative group cursor-pointer transition-all", activeSection === id ? "ring-2 ring-pink-500 ring-offset-1" : "hover:ring-2 hover:ring-slate-300")}
+      onClick={(e) => { e.stopPropagation(); onSelectSection(id); }}
+    >
+      {activeSection === id && (
+        <div className="absolute -top-7 left-0 z-10 bg-pink-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-t flex items-center gap-1">
+          <span>{getSectionLabel(id, SITE_SECTIONS, BASIC_SETTINGS)}</span>
+          <X className="w-2.5 h-2.5" />
+        </div>
+      )}
+      {children}
+    </div>
+  );
+
+  return (
+    <div style={{ background: colors.background, color: colors.text, fontFamily: typography.bodyFont, fontSize: Number(typography.bodySize) }} onClick={() => onSelectSection("")}>
+      {isEnabled("header") && (
+        <Section id="header">
+          <div className="border-b" style={{ borderColor: `${t}15`, background: colors.background }}>
+            <div className="max-w-7xl mx-auto flex items-center justify-between gap-6 px-4 py-4">
+              <div className="flex items-center gap-3">
+                {config.logo.imageUrl ? (
+                  <img src={config.logo.imageUrl} alt="Logo" style={{ maxWidth: Math.min(config.logo.width * 0.6, 120), height: "auto" }} className="object-contain" />
+                ) : (
+                  <span className="font-extrabold tracking-tight" style={{ fontFamily: `"${typography.headingFont}", serif`, fontSize: Math.max(config.logo.width / 8, 14), color: p }}>{config.logo.text}</span>
+                )}
+              </div>
+              <nav className="hidden lg:flex items-center gap-4 text-xs font-bold">
+                {["New Arrival", "Best Seller", "Baby Boys", "Baby Girls", "Sale"].map((l) => (
+                  <span key={l} className="hover:opacity-70 cursor-pointer transition-opacity" style={{ color: t }}>{l}</span>
+                ))}
+              </nav>
+            </div>
+          </div>
+        </Section>
+      )}
+
+      {/* Page-specific content */}
+      {activePage === "home" && (
+        <>
+          {isEnabled("hero") && (
+            <Section id="hero">
+              <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-8 px-4 py-12 items-center">
+                <div className="space-y-4">
+                  <div className="h-6 w-32 rounded-full" style={{ background: `${p}15` }} />
+                  <div className="h-12 rounded-lg" style={{ background: `${t}20`, width: "70%" }} />
+                  <div className="h-4 rounded w-4/5" style={{ background: `${t}10` }} />
+                  <div className="flex gap-3 pt-2">
+                    <div className="h-10 w-28 rounded-full" style={{ background: p }} />
+                    <div className="h-10 w-24 rounded-full border-2" style={{ borderColor: `${t}30` }} />
+                  </div>
+                </div>
+                <div className="aspect-video rounded-2xl" style={{ background: `${p}10` }} />
+              </div>
+            </Section>
+          )}
+          {isEnabled("trustStrip") && (
+            <Section id="trustStrip">
+              <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 px-4 py-6" style={{ background: sb }}>
+                {[1,2,3,4].map(i => <div key={i} className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full" style={{ background: `${p}15` }} />
+                  <div><div className="h-3 rounded w-20" style={{ background: `${p}20` }} /><div className="h-2 rounded w-16 mt-1" style={{ background: `${t}10` }} /></div>
+                </div>)}
+              </div>
+            </Section>
+          )}
+          {isEnabled("categories") && (
+            <Section id="categories">
+              <div className="max-w-7xl mx-auto px-4 py-12 text-center">
+                <div className="h-8 rounded w-48 mx-auto mb-2" style={{ background: `${t}15` }} />
+                <div className="h-4 rounded w-64 mx-auto" style={{ background: `${t}08` }} />
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-4 mt-8">
+                  {[1,2,3,4,5,6].map(i => <div key={i} className="flex flex-col items-center gap-2">
+                    <div className="w-full aspect-square rounded-full" style={{ background: `${a}20`, border: `2px solid ${a}40` }} />
+                    <div className="h-3 rounded w-12" style={{ background: `${t}15` }} />
+                  </div>)}
+                </div>
+              </div>
+            </Section>
+          )}
+          {isEnabled("sale") && (
+            <Section id="sale">
+              <div className="max-w-7xl mx-auto px-4 py-12" style={{ background: `${p}08` }}>
+                <div className="flex justify-between mb-6"><div><div className="h-6 w-32" style={{ background: `${t}15` }} /><div className="h-3 w-48 mt-1" style={{ background: `${t}08` }} /></div><div className="h-4 w-12" style={{ color: p }}>→</div></div>
+                <div className="grid grid-cols-4 gap-4">{[1,2,3,4].map(i => <div key={i}><div className="aspect-square rounded-xl" style={{ background: `${p}15` }} /><div className="h-3 rounded w-3/4 mt-2" style={{ background: `${t}15` }} /><div className="h-2 rounded w-1/2 mt-1" style={{ background: `${t}10` }} /></div>)}</div>
+              </div>
+            </Section>
+          )}
+          {isEnabled("bestSellers") && (
+            <Section id="bestSellers">
+              <div className="max-w-7xl mx-auto px-4 py-12">
+                <div className="flex justify-between mb-6"><div><div className="h-6 w-32" style={{ background: `${t}15` }} /><div className="h-3 w-48 mt-1" style={{ background: `${t}08` }} /></div><div className="h-4 w-12" style={{ color: p }}>→</div></div>
+                <div className="grid grid-cols-4 gap-4">{[1,2,3,4].map(i => <div key={i}><div className="aspect-square rounded-xl" style={{ background: `${p}10` }} /><div className="h-3 rounded w-3/4 mt-2" style={{ background: `${t}15` }} /><div className="h-2 rounded w-1/2 mt-1" style={{ background: `${t}10` }} /></div>)}</div>
+              </div>
+            </Section>
+          )}
+          {isEnabled("newArrivals") && (
+            <Section id="newArrivals">
+              <div className="max-w-7xl mx-auto px-4 py-12" style={{ background: sb }}>
+                <div className="flex justify-between mb-6"><div><div className="h-6 w-32" style={{ background: `${t}15` }} /><div className="h-3 w-48 mt-1" style={{ background: `${t}08` }} /></div><div className="h-4 w-12" style={{ color: p }}>→</div></div>
+                <div className="grid grid-cols-4 gap-4">{[1,2,3,4].map(i => <div key={i}><div className="aspect-square rounded-xl" style={{ background: `${p}10` }} /><div className="h-3 rounded w-3/4 mt-2" style={{ background: `${t}15` }} /><div className="h-2 rounded w-1/2 mt-1" style={{ background: `${t}10` }} /></div>)}</div>
+              </div>
+            </Section>
+          )}
+          {isEnabled("newsletter") && (
+            <Section id="newsletter">
+              <div className="max-w-2xl mx-auto px-4 py-16 text-center">
+                <div className="h-8 w-48 mx-auto mb-2" style={{ background: `${t}15` }} />
+                <div className="h-4 w-64 mx-auto" style={{ background: `${t}08` }} />
+                <div className="flex gap-2 mt-6 max-w-sm mx-auto justify-center">
+                  <div className="h-10 flex-1 rounded-full" style={{ border: `2px solid ${t}20` }} />
+                  <div className="h-10 w-24 rounded-full" style={{ background: t }} />
+                </div>
+              </div>
+            </Section>
+          )}
+          {isEnabled("footer") && (
+            <Section id="footer">
+              <div className="px-4 py-10 border-t" style={{ background: t, color: colors.background }}>
+                <div className="max-w-7xl mx-auto grid grid-cols-4 gap-6 mb-6">
+                  <div>
+                    <div className="h-4 w-20 mb-2" style={{ background: `${colors.background}40` }} />
+                    <div className="space-y-1">
+                      {[1,2,3].map(j => <div key={j} className="h-2 w-16 rounded" style={{ background: `${colors.background}20` }} />)}
+                    </div>
+                  </div>
+                  {[1,2,3].map(col => <div key={col}>
+                    <div className="h-3 w-16 mb-2" style={{ background: `${colors.background}40` }} />
+                    <div className="space-y-1">
+                      {[1,2,3].map(j => <div key={j} className="h-2 w-12 rounded" style={{ background: `${colors.background}20` }} />)}
+                    </div>
+                  </div>)}
+                </div>
+                <p className="text-center text-xs opacity-40">{sec("footer").copyrightText}</p>
+              </div>
+            </Section>
+          )}
+        </>
+      )}
+
+      {activePage === "collections" && (
+        <Section id="collectionPage">
+          <div className="max-w-7xl mx-auto px-4 py-16">
+            <div className="flex flex-col sm:flex-row gap-4 mb-10">
+              <div className="flex-1 h-10 rounded-xl" style={{ background: `${p}10` }} />
+              <div className="flex gap-2">
+                <div className="h-10 w-24 rounded-xl border-2" style={{ borderColor: `${t}20` }} />
+                <div className="h-10 w-24 rounded-xl border-2" style={{ borderColor: `${t}20` }} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[1,2,3,4,5,6,7,8].map(i => <div key={i}>
+                <div className="aspect-[3/4] rounded-xl mb-2" style={{ background: `${p}10` }} />
+                <div className="h-4 rounded w-3/4 mb-1" style={{ background: `${t}15` }} />
+                <div className="h-3 rounded w-1/3" style={{ background: `${t}10` }} />
+              </div>)}
+            </div>
+          </div>
+        </Section>
+      )}
+
+      {activePage === "products" && (
+        <Section id="productPage">
+          <div className="max-w-7xl mx-auto px-4 py-12">
+            <div className="grid md:grid-cols-2 gap-8">
+              <div className="aspect-square rounded-2xl" style={{ background: `${p}10` }} />
+              <div className="space-y-4 pt-4">
+                <div className="h-10 rounded-lg w-3/4" style={{ background: `${t}15` }} />
+                <div className="h-6 rounded w-1/4" style={{ background: `${p}20` }} />
+                <div className="h-4 rounded w-full" style={{ background: `${t}10` }} />
+                <div className="h-4 rounded w-11/12" style={{ background: `${t}10` }} />
+                <div className="flex gap-2 pt-4">
+                  <div className="h-12 rounded-full flex-1" style={{ background: p }} />
+                  <div className="h-12 w-12 rounded-full border-2" style={{ borderColor: `${t}20` }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </Section>
+      )}
+
+      {(activePage === "about" || activePage === "contact" || activePage === "tracking" || activePage === "terms" || activePage === "privacy") && (
+        <Section id={activePage}>
+          <div className="max-w-3xl mx-auto px-4 py-16 text-center">
+            <div className="h-10 w-48 mx-auto rounded-lg mb-4" style={{ background: `${t}15` }} />
+            <div className="space-y-3">
+              {[1,2,3,4,5].map(i => <div key={i} className="h-4 rounded mx-auto" style={{ background: `${t}08`, width: `${70 + (i % 3) * 10}%` }} />)}
+            </div>
+            <div className="mt-8 grid sm:grid-cols-3 gap-4 text-left">
+              {[1,2,3].map(i => <div key={i} className="p-4 rounded-xl" style={{ background: sb }}>
+                <div className="h-4 w-20 mb-2" style={{ background: `${t}15` }} />
+                <div className="h-3 rounded w-full mb-1" style={{ background: `${t}08` }} />
+                <div className="h-3 rounded w-3/4" style={{ background: `${t}08` }} />
+              </div>)}
+            </div>
+          </div>
+        </Section>
+      )}
+    </div>
+  );
+}

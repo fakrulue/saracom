@@ -1,0 +1,198 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// SQLite does not support enums, so we use String
+// CollectionType: manual, smart
+// CollectionStatus: active, draft, archived
+// SortOrder: manual, best_selling, title_asc, title_desc, price_asc, price_desc, created_asc, created_desc
+// RuleField: title, type, vendor, tag, price, compare_at_price, weight, stock, variant_title
+// RuleOperator: equals, not_equals, contains, not_contains, starts_with, ends_with, greater_than, less_than, is_not_empty
+
+model Media {
+  id           String   @id @default(uuid())
+  storeId      String
+  store        Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  url          String
+  alt          String?
+  createdAt    DateTime @default(now())
+}
+
+model Store {
+  id          String       @id @default(uuid())
+  name        String
+  collections Collection[]
+  products    Product[]
+  media       Media[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+}
+
+model Product {
+  id                 String              @id @default(uuid())
+  storeId            String
+  store              Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  title              String
+  handle             String
+  description        String?
+  vendor             String?
+  productType        String?
+  tags               String              @default("[]")
+  status             String              @default("draft")
+  options            ProductOption[]
+  variants           ProductVariant[]
+  media              ProductMedia[]
+  collectionProducts CollectionProduct[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  deletedAt          DateTime?
+
+  @@unique([storeId, handle])
+}
+
+model ProductOption {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String
+  values    String   // JSON string
+  position  Int      @default(0)
+}
+
+model ProductVariant {
+  id              String   @id @default(uuid())
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  title           String
+  price           Float    @default(0.0)
+  compareAtPrice  Float?
+  costPerItem     Float?
+  sku             String?
+  barcode         String?
+  inventoryPolicy String   @default("deny")
+  inventoryQty    Int      @default(0)
+  weight          Float?
+  weightUnit      String   @default("kg")
+  position        Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ProductMedia {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  alt       String?
+  type      String   @default("image")
+  position  Int      @default(0)
+}
+
+model Collection {
+  id              String            @id @default(uuid())
+  storeId         String
+  store           Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  title           String
+  handle          String
+  description     String?
+  descriptionHtml String?
+  collectionType  String            @default("manual")
+  status          String            @default("draft")
+  sortOrder       String            @default("manual")
+  imageUrl        String?
+  imageAlt        String?
+  seoTitle        String?
+  seoDescription  String?
+  publishedAt     DateTime?
+  products        CollectionProduct[]
+  rules           CollectionRule?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  deletedAt       DateTime?
+
+  @@unique([storeId, handle])
+}
+
+model CollectionProduct {
+  id           String     @id @default(uuid())
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  position     Int        @default(0)
+  addedAt      DateTime   @default(now())
+
+  @@unique([collectionId, productId])
+}
+
+model CollectionRule {
+  id           String                    @id @default(uuid())
+  collectionId String                    @unique
+  collection   Collection                @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  matchAll     Boolean                   @default(true)
+  conditions   CollectionRuleCondition[]
+  createdAt    DateTime                  @default(now())
+}
+
+model CollectionRuleCondition {
+  id       String       @id @default(uuid())
+  ruleId   String
+  rule     CollectionRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  field    String
+  operator String
+  value    String
+  position Int          @default(0)
+}
+
+model Theme {
+  id        String   @id @default(uuid())
+  config    String
+  updatedAt DateTime @updatedAt
+}
+
+model VideoReview {
+  id           String   @id @default(uuid())
+  videoUrl     String
+  thumbnailUrl String?
+  reviewerName String
+  reviewText   String?
+  rating       Int      @default(5)
+  status       String   @default("active") // active, hidden
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Role {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  description String?
+  permissions String      @default("[]") // JSON array of permission strings
+  isDefault   Boolean     @default(false)
+  staff       Staff[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Staff {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  name         String
+  phone        String?
+  password     String     // hashed
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id])
+  status       String     @default("active") // active, inactive
+  lastLogin    DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
