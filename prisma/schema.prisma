@@ -33,9 +33,36 @@ model Store {
   collections Collection[]
   products    Product[]
   media       Media[]
+  customers   Customer[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   deletedAt   DateTime?
+}
+
+model Customer {
+  id          String    @id @default(uuid())
+  storeId     String
+  store       Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name        String
+  email       String    @unique
+  phone       String?
+  location    String?
+  orders      Int       @default(0)
+  spent       Float     @default(0)
+  status      String    @default("active")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Segment {
+  id        String   @id @default(uuid())
+  name      String
+  query     String
+  count     Int      @default(0)
+  growth    String?
+  color     String   @default("text-slate-600 bg-slate-50")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Product {
@@ -162,12 +189,13 @@ model Theme {
 
 model VideoReview {
   id           String   @id @default(uuid())
+  productName  String
   videoUrl     String
   thumbnailUrl String?
   reviewerName String
   reviewText   String?
   rating       Int      @default(5)
-  status       String   @default("active") // active, hidden
+  status       String   @default("pending") // pending, published, flagged
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -195,4 +223,70 @@ model Staff {
   lastLogin    DateTime?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+}
+
+model Seller {
+  id        String    @id @default(uuid())
+  name      String
+  owner     String
+  email     String    @unique
+  phone     String?
+  status    String    @default("pending")
+  sales     Float     @default(0)
+  products  Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  payouts   Payout[]
+}
+
+model Payout {
+  id        String   @id @default(uuid())
+  sellerId  String
+  seller    Seller   @relation(fields: [sellerId], references: [id])
+  method    String
+  amount    Float
+  status    String   @default("pending") // pending, completed, failed
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Commission {
+  id        String   @id @default(uuid())
+  name      String
+  category  String
+  rate      Float
+  rateType  String   @default("percentage") // percentage, fixed
+  status    String   @default("active") // active, draft
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Campaign {
+  id        String   @id @default(uuid())
+  name      String
+  status    String   @default("draft")
+  channel   String   @default("email")
+  segment   String   @default("all")
+  subject   String?
+  message   String?
+  sendDate  String?
+  sendTime  String?
+  reach     Int      @default(0)
+  clicks    Int      @default(0)
+  conv      Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Discount {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  type      String   // Percentage, FixedAmount, FreeShipping
+  value     Float
+  usage     Int      @default(0)
+  usageLimit Int?
+  expiry    String?
+  status    String   @default("active") // active, expired, scheduled
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { 
   DollarSign, 
@@ -28,14 +28,37 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-const PAYOUTS = [
-  { id: "p1", seller: "Fashion Nova", method: "Stripe", amount: "$1,240.00", status: "completed", date: "May 10, 2024" },
-  { id: "p2", seller: "Tech Giant",   method: "Bank Transfer", amount: "$890.50", status: "pending", date: "May 11, 2024" },
-  { id: "p3", seller: "Eco Living",   method: "PayPal", amount: "$450.00", status: "failed", date: "May 9, 2024" },
-  { id: "p4", seller: "Modern Home",  method: "Stripe", amount: "$2,100.00", status: "completed", date: "May 5, 2024" },
-];
+type Payout = {
+  id: string;
+  sellerId: string;
+  seller: { name: string };
+  method: string;
+  amount: number;
+  status: string;
+  createdAt: string;
+};
+
+const STATUS_MAP: Record<string, { className: string; label: string }> = {
+  completed: { className: "bg-emerald-100 text-emerald-700", label: "Completed" },
+  pending: { className: "bg-amber-100 text-amber-700", label: "Pending" },
+  failed: { className: "bg-red-100 text-red-700", label: "Failed" },
+};
 
 export default function PayoutsPage() {
+  const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/v1/payouts")
+      .then(r => r.json())
+      .then(({ data }) => setPayouts(data || []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const totalAmount = payouts.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const completedCount = payouts.filter(p => p.status === "completed").length;
+  const pendingCount = payouts.filter(p => p.status === "pending").length;
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -52,10 +75,10 @@ export default function PayoutsPage() {
 
         {/* Highlight Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <StatCard title="Total Paid Out" value="$45,200" icon={CheckCircle2} color="text-emerald-600 bg-emerald-50" />
-          <StatCard title="Pending Payouts" value="$2,450" icon={Clock} color="text-amber-600 bg-amber-50" />
-          <StatCard title="Active Wallets" value="124" icon={Wallet} color="text-blue-600 bg-blue-50" />
-          <StatCard title="Failed Transfers" value="2" icon={AlertCircle} color="text-red-600 bg-red-50" />
+          <StatCard title="Total Paid Out" value={loading ? "—" : `$${totalAmount.toLocaleString()}`} icon={CheckCircle2} color="text-emerald-600 bg-emerald-50" />
+          <StatCard title="Pending Payouts" value={loading ? "—" : `$${payouts.filter(p => p.status === "pending").reduce((sum, p) => sum + p.amount, 0).toLocaleString()}`} icon={Clock} color="text-amber-600 bg-amber-50" />
+          <StatCard title="Completed" value={loading ? "—" : String(completedCount)} icon={Wallet} color="text-blue-600 bg-blue-50" />
+          <StatCard title="Failed" value={loading ? "—" : String(payouts.filter(p => p.status === "failed").length)} icon={AlertCircle} color="text-red-600 bg-red-50" />
         </div>
 
         <Card className="border-none shadow-sm">
@@ -77,30 +100,47 @@ export default function PayoutsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {PAYOUTS.map((p) => (
-                <TableRow key={p.id} className="group hover:bg-slate-50/50">
-                  <TableCell className="font-bold text-slate-900">{p.seller}</TableCell>
-                  <TableCell className="text-sm text-slate-500">{p.method}</TableCell>
-                  <TableCell className="font-black text-slate-900">{p.amount}</TableCell>
-                  <TableCell>
-                    <Badge className={cn(
-                      "text-[10px] uppercase font-bold tracking-widest shadow-none",
-                      p.status === "completed" ? "bg-emerald-100 text-emerald-700" :
-                      p.status === "pending" ? "bg-amber-100 text-amber-700" :
-                      "bg-red-100 text-red-700"
-                    )}>
-                      {p.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs text-slate-500">{p.date}</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" className="h-8 gap-2">
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                      Receipt
-                    </Button>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-10 text-slate-400">
+                    Loading payouts...
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : payouts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-10">
+                    <div className="flex flex-col items-center">
+                      <DollarSign className="w-10 h-10 text-slate-300 mb-2" />
+                      <p className="text-slate-500">No payouts found</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                payouts.map((p) => (
+                  <TableRow key={p.id} className="group hover:bg-slate-50/50">
+                    <TableCell className="font-bold text-slate-900">{p.seller?.name || "Unknown"}</TableCell>
+                    <TableCell className="text-sm text-slate-500">{p.method || "—"}</TableCell>
+                    <TableCell className="font-black text-slate-900">${(p.amount || 0).toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Badge className={cn(
+                        "text-[10px] uppercase font-bold tracking-widest shadow-none",
+                        p.status === "completed" ? "bg-emerald-100 text-emerald-700" :
+                        p.status === "pending" ? "bg-amber-100 text-amber-700" :
+                        "bg-red-100 text-red-700"
+                      )}>
+                        {p.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-slate-500">{p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "—"}</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" className="h-8 gap-2">
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                        Receipt
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </Card>

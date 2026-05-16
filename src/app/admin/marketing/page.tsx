@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { 
@@ -15,14 +15,51 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
+type Campaign = {
+  id: string;
+  name: string;
+  status: string;
+  reach: number;
+  clicks: number;
+  conv: number;
+};
+
+function StatCard({ title, value, change, icon: Icon, color }: { title: string; value: string; change?: string; icon: any; color: string }) {
+  return (
+    <Card className="border-none shadow-sm">
+      <CardContent className="p-5 flex items-center gap-4">
+        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", color)}>
+          <Icon className="w-5 h-5" />
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{title}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-xl font-bold text-slate-900">{value}</p>
+            {change && <span className="text-xs font-medium text-emerald-600">{change}</span>}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function MarketingOverviewPage() {
-  const campaigns = [
-    { name: "Summer Sale 2024", status: "active",  reach: "12.5k", clicks: "1.2k", conv: "3.2%" },
-    { name: "New Arrival Blast", status: "draft",   reach: "-",     clicks: "-",    conv: "-" },
-    { name: "Flash Friday",     status: "expired", reach: "8.2k",  clicks: "950",  conv: "2.8%" },
-  ];
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/v1/campaigns")
+      .then(r => r.json())
+      .then(({ data }) => setCampaigns(data || []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const totalReach = campaigns.reduce((sum, c) => sum + (c.reach || 0), 0);
+  const totalClicks = campaigns.reduce((sum, c) => sum + (c.clicks || 0), 0);
 
   return (
     <AdminLayout>
@@ -49,22 +86,19 @@ export default function MarketingOverviewPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <StatCard 
             title="Total Reach" 
-            value="45.2k" 
-            change="+12%" 
+            value={loading ? "—" : String(totalReach)} 
             icon={Users} 
             color="text-blue-600 bg-blue-50" 
           />
           <StatCard 
             title="Campaign Clicks" 
-            value="3.8k" 
-            change="+8.4%" 
+            value={loading ? "—" : String(totalClicks)} 
             icon={MousePointerClick} 
             color="text-emerald-600 bg-emerald-50" 
           />
           <StatCard 
-            title="Sales from Marketing" 
-            value="$12,450" 
-            change="+15.2%" 
+            title="Active Campaigns" 
+            value={loading ? "—" : String(campaigns.filter(c => c.status === "active").length)} 
             icon={TrendingUp} 
             color="text-violet-600 bg-violet-50" 
           />
@@ -130,64 +164,54 @@ export default function MarketingOverviewPage() {
             <CardTitle className="text-lg">Recent Campaigns</CardTitle>
             <CardDescription>Performance of your latest marketing activities.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {campaigns.map((camp) => (
-                <div key={camp.name} className="flex items-center justify-between p-4 border rounded-xl hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500">
-                      <Megaphone className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">{camp.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className={cn(
-                          "text-[10px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded",
-                          camp.status === "active" ? "bg-emerald-100 text-emerald-700" :
-                          camp.status === "draft" ? "bg-slate-100 text-slate-600" :
-                          "bg-red-50 text-red-600"
-                        )}>
-                          {camp.status}
-                        </span>
+<CardContent>
+              {loading ? (
+                <div className="text-center py-8 text-slate-400">Loading campaigns...</div>
+              ) : campaigns.length === 0 ? (
+                <div className="text-center py-8">
+                  <Megaphone className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                  <p className="text-slate-500">No campaigns found</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {campaigns.map((camp) => (
+                    <div key={camp.id} className="flex items-center justify-between p-4 border rounded-xl hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500">
+                          <Megaphone className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{camp.name}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className={cn(
+                              "text-[10px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded",
+                              camp.status === "active" ? "bg-emerald-100 text-emerald-700" :
+                              camp.status === "draft" ? "bg-slate-100 text-slate-600" :
+                              "bg-red-50 text-red-600"
+                            )}>
+                              {camp.status}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-8">
+                        <div className="text-right">
+                          <p className="text-xs text-slate-400 uppercase font-bold tracking-wider">Reach</p>
+                          <p className="text-sm font-bold">{camp.reach || 0}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-slate-400 uppercase font-bold tracking-wider">Clicks</p>
+                          <p className="text-sm font-bold">{camp.clicks || 0}</p>
+                        </div>
+                        <Button variant="ghost" size="sm">View Report</Button>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-8">
-                    <div className="text-right">
-                      <p className="text-xs text-slate-400 uppercase font-bold tracking-wider">Reach</p>
-                      <p className="text-sm font-bold">{camp.reach}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-slate-400 uppercase font-bold tracking-wider">Conv.</p>
-                      <p className="text-sm font-bold">{camp.conv}</p>
-                    </div>
-                    <Button variant="ghost" size="sm">View Report</Button>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </CardContent>
+              )}
+            </CardContent>
         </Card>
       </div>
     </AdminLayout>
-  );
-}
-
-function StatCard({ title, value, change, icon: Icon, color }: any) {
-  return (
-    <Card className="border-none shadow-sm">
-      <CardContent className="p-6 flex items-center justify-between">
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-slate-500">{title}</p>
-          <div className="flex items-baseline gap-2">
-            <p className="text-2xl font-bold text-slate-900">{value}</p>
-            <span className="text-xs font-medium text-emerald-600">{change}</span>
-          </div>
-        </div>
-        <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center", color)}>
-          <Icon className="w-6 h-6" />
-        </div>
-      </CardContent>
-    </Card>
   );
 }

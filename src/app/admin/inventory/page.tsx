@@ -13,10 +13,15 @@ import {
   RefreshCcw,
   History,
   FileDown,
+  X,
+  Plus,
+  Minus,
+  Printer,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -27,6 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { generateBarcodeSVG as genBarcodeSVG, printBarcode } from "@/lib/barcode";
 
 type Variant = {
   id: string;
@@ -52,6 +58,11 @@ export default function InventoryPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [selectedVariant, setSelectedVariant] = useState<any>(null);
+  const [adjustmentType, setAdjustmentType] = useState<"add" | "remove" | "set">("set");
+  const [adjustmentValue, setAdjustmentValue] = useState("");
+  const [adjusting, setAdjusting] = useState(false);
 
   useEffect(() => {
     fetch("/api/v1/products")
@@ -104,7 +115,15 @@ export default function InventoryPage() {
               <History className="w-4 h-4" />
               Transfer Log
             </Button>
-            <Button className="shadow-sm gap-2">
+            <Button 
+              className="shadow-sm gap-2"
+              onClick={() => {
+                if (allVariants.length > 0) {
+                  setSelectedVariant(allVariants[0]);
+                  setShowAdjustModal(true);
+                }
+              }}
+            >
               <RefreshCcw className="w-4 h-4" />
               Update Stock
             </Button>
@@ -229,14 +248,32 @@ export default function InventoryPage() {
                         {v.inventoryQty}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 gap-2"
-                        >
-                          <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
-                          Adjust
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          {v.barcode && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 gap-1"
+                              onClick={async () => {
+                                await printBarcode(v.barcode!, v.productTitle, v.title !== "Default" ? v.title : "", 1);
+                              }}
+                            >
+                              <Printer className="w-3.5 h-3.5 text-slate-400" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 gap-2"
+                            onClick={() => {
+                              setSelectedVariant(v);
+                              setShowAdjustModal(true);
+                            }}
+                          >
+                            <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                            Adjust
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -246,6 +283,140 @@ export default function InventoryPage() {
           )}
         </Card>
       </div>
+
+      {showAdjustModal && selectedVariant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h2 className="text-lg font-bold">Adjust Stock</h2>
+              <button 
+                onClick={() => {
+                  setShowAdjustModal(false);
+                  setAdjustmentValue("");
+                }}
+                className="p-2 hover:bg-slate-100 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="p-4 bg-slate-50 rounded-lg">
+                <p className="text-sm font-bold text-slate-900">{selectedVariant.productTitle}</p>
+                <p className="text-xs text-slate-500">{selectedVariant.title !== "Default" ? selectedVariant.title : "Default Variant"}</p>
+                <p className="text-xs text-slate-400 mt-1">Current stock: <span className="font-bold text-slate-900">{selectedVariant.inventoryQty}</span></p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Adjustment Type</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={adjustmentType === "set" ? "default" : "outline"}
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setAdjustmentType("set")}
+                  >
+                    Set
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={adjustmentType === "add" ? "default" : "outline"}
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setAdjustmentType("add")}
+                  >
+                    <Plus className="w-3 h-3 mr-1" /> Add
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={adjustmentType === "remove" ? "default" : "outline"}
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setAdjustmentType("remove")}
+                  >
+                    <Minus className="w-3 h-3 mr-1" /> Remove
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Quantity</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={adjustmentValue}
+                  onChange={(e) => setAdjustmentValue(e.target.value)}
+                  placeholder={adjustmentType === "set" ? "New quantity" : "Amount to add/remove"}
+                />
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-lg text-sm">
+                <p className="text-slate-500">New stock level:</p>
+                <p className="text-xl font-bold text-slate-900">
+                  {adjustmentType === "set" 
+                    ? adjustmentValue || "—"
+                    : adjustmentType === "add"
+                      ? (parseInt(adjustmentValue) || 0) + selectedVariant.inventoryQty
+                      : Math.max(0, selectedVariant.inventoryQty - (parseInt(adjustmentValue) || 0))
+                  }
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 px-6 py-4 border-t bg-slate-50/50 rounded-b-2xl">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowAdjustModal(false);
+                  setAdjustmentValue("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                disabled={adjusting || !adjustmentValue}
+                onClick={async () => {
+                  setAdjusting(true);
+                  const value = parseInt(adjustmentValue);
+                  let newQty = value;
+                  if (adjustmentType === "add") newQty = selectedVariant.inventoryQty + value;
+                  if (adjustmentType === "remove") newQty = Math.max(0, selectedVariant.inventoryQty - value);
+
+                  try {
+                    const res = await fetch(`/api/v1/variants/${selectedVariant.id}`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ inventoryQty: newQty })
+                    });
+                    if (res.ok) {
+                      setProducts(prev => prev.map(p => {
+                        if (p.handle === selectedVariant.productHandle) {
+                          return {
+                            ...p,
+                            variants: p.variants.map(v => 
+                              v.id === selectedVariant.id 
+                                ? { ...v, inventoryQty: newQty }
+                                : v
+                            )
+                          };
+                        }
+                        return p;
+                      }));
+                      setShowAdjustModal(false);
+                      setAdjustmentValue("");
+                    }
+                  } catch (err) {
+                    console.error(err);
+                  } finally {
+                    setAdjusting(false);
+                  }
+                }}
+              >
+                {adjusting ? "Saving..." : "Save Adjustment"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

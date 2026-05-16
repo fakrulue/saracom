@@ -27,6 +27,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { VariantMatrixEditor } from "@/components/admin/products/variant-matrix-editor";
+import { MediaManager } from "@/components/admin/MediaManager";
 import { cn } from "@/lib/utils";
 
 export default function NewProductPage() {
@@ -36,6 +37,7 @@ export default function NewProductPage() {
   const [options, setOptions] = useState<any[]>([]);
   const [variants, setVariants] = useState<any[]>([]);
   const [media, setMedia] = useState<any[]>([]);
+  const [showMediaBrowser, setShowMediaBrowser] = useState(false);
 
   // Basic Form State (manual for simplicity in this demo)
   const [formData, setFormData] = useState({
@@ -148,7 +150,22 @@ export default function NewProductPage() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="aspect-square rounded-lg border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-4 text-center hover:bg-slate-50 transition-colors cursor-pointer">
+                  {media.map((item, index) => (
+                    <div key={index} className="group relative aspect-square rounded-lg overflow-hidden border border-slate-200">
+                      <img src={item.url} alt={item.alt || ""} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setMedia(media.filter((_, i) => i !== index))}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <div 
+                    onClick={() => setShowMediaBrowser(true)}
+                    className="aspect-square rounded-lg border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-4 text-center hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
                     <Plus className="w-6 h-6 text-slate-400 mb-2" />
                     <span className="text-xs font-medium text-slate-500">Add Image</span>
                   </div>
@@ -312,6 +329,16 @@ export default function NewProductPage() {
           </div>
         </div>
       </form>
+      {showMediaBrowser && (
+        <MediaManager
+          mode="select"
+          onSelect={(url, alt) => {
+            setMedia([...media, { url, alt }]);
+            setShowMediaBrowser(false);
+          }}
+          onClose={() => setShowMediaBrowser(false)}
+        />
+      )}
     </AdminLayout>
   );
 }

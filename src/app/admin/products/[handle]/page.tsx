@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { VariantMatrixEditor } from "@/components/admin/products/variant-matrix-editor";
+import { MediaManager } from "@/components/admin/MediaManager";
 
 export default function EditProductPage({ params }: { params: Promise<{ handle: string }> }) {
   const router = useRouter();
@@ -35,6 +36,8 @@ export default function EditProductPage({ params }: { params: Promise<{ handle: 
   const [hasVariants, setHasVariants] = useState(false);
   const [options, setOptions] = useState<any[]>([]);
   const [variants, setVariants] = useState<any[]>([]);
+  const [media, setMedia] = useState<any[]>([]);
+  const [showMediaBrowser, setShowMediaBrowser] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -71,6 +74,7 @@ export default function EditProductPage({ params }: { params: Promise<{ handle: 
             setHasVariants(true);
             setOptions(found.options);
           }
+          setMedia(found.media || []);
         }
       } catch (error) {
         console.error("Failed to load product", error);
@@ -94,6 +98,7 @@ export default function EditProductPage({ params }: { params: Promise<{ handle: 
         inventoryQty: formData.inventoryQty,
         sku: formData.sku
       }],
+      media
     };
 
     try {
@@ -176,6 +181,37 @@ export default function EditProductPage({ params }: { params: Promise<{ handle: 
                     value={formData.description}
                     onChange={(e) => setFormData({...formData, description: e.target.value})}
                   />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Media */}
+            <Card className="border-none shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg">Media</CardTitle>
+                <CardDescription>Upload images and videos to showcase your product.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {media.map((item, index) => (
+                    <div key={index} className="group relative aspect-square rounded-lg overflow-hidden border border-slate-200">
+                      <img src={item.url} alt={item.alt || ""} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setMedia(media.filter((_, i) => i !== index))}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <div 
+                    onClick={() => setShowMediaBrowser(true)}
+                    className="aspect-square rounded-lg border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-4 text-center hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-6 h-6 text-slate-400 mb-2" />
+                    <span className="text-xs font-medium text-slate-500">Add Image</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -357,6 +393,16 @@ export default function EditProductPage({ params }: { params: Promise<{ handle: 
           </div>
         </div>
       </form>
+      {showMediaBrowser && (
+        <MediaManager
+          mode="select"
+          onSelect={(url, alt) => {
+            setMedia([...media, { url, alt }]);
+            setShowMediaBrowser(false);
+          }}
+          onClose={() => setShowMediaBrowser(false)}
+        />
+      )}
     </AdminLayout>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { 
   ChevronLeft, 
@@ -12,7 +13,8 @@ import {
   Layout, 
   Settings2,
   CheckCircle2,
-  X
+  X,
+  Loader2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,7 +26,51 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export default function NewCampaignPage() {
+  const router = useRouter();
   const [step, setStep] = useState(1);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    channel: "email",
+    segment: "all",
+    subject: "",
+    message: "",
+    sendDate: "",
+    sendTime: ""
+  });
+
+  const handleSave = async (status: "draft" | "active") => {
+    if (!form.name) {
+      alert("Please enter a campaign name");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/v1/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          status,
+          channel: form.channel,
+          segment: form.segment,
+          subject: form.subject,
+          message: form.message,
+          sendDate: form.sendDate,
+          sendTime: form.sendTime
+        })
+      });
+      if (res.ok) {
+        router.push("/admin/marketing/campaigns");
+      } else {
+        alert("Failed to save campaign");
+      }
+    } catch (e) {
+      alert("Error saving campaign");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <AdminLayout>
@@ -32,7 +78,7 @@ export default function NewCampaignPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => window.location.href='/admin/marketing'}>
+            <Button variant="ghost" size="icon" onClick={() => router.push('/admin/marketing/campaigns')}>
               <ChevronLeft className="w-5 h-5" />
             </Button>
             <div>
@@ -41,8 +87,14 @@ export default function NewCampaignPage() {
             </div>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline">Save Draft</Button>
-            <Button className="shadow-sm">Launch Campaign</Button>
+            <Button variant="outline" disabled={saving} onClick={() => handleSave("draft")}>
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              Save Draft
+            </Button>
+            <Button className="shadow-sm" disabled={saving} onClick={() => handleSave("active")}>
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Megaphone className="w-4 h-4 mr-2" />}
+              Launch Campaign
+            </Button>
           </div>
         </div>
 
@@ -75,12 +127,16 @@ export default function NewCampaignPage() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>Campaign Name</Label>
-                  <Input placeholder="e.g. Summer Sale 2024" />
+                  <Input 
+                    placeholder="e.g. Summer Sale 2024" 
+                    value={form.name}
+                    onChange={e => setForm({...form, name: e.target.value})}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Channel</Label>
-                    <Select defaultValue="email">
+                    <Select value={form.channel} onValueChange={v => setForm({...form, channel: v})}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -93,7 +149,7 @@ export default function NewCampaignPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Target Segment</Label>
-                    <Select defaultValue="all">
+                    <Select value={form.segment} onValueChange={v => setForm({...form, segment: v})}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -107,11 +163,20 @@ export default function NewCampaignPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Subject Line / Headline</Label>
-                  <Input placeholder="Enter a catchy subject line" />
+                  <Input 
+                    placeholder="Enter a catchy subject line"
+                    value={form.subject}
+                    onChange={e => setForm({...form, subject: e.target.value})}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Message Body</Label>
-                  <Textarea placeholder="Write your message here..." className="min-h-[150px]" />
+                  <Textarea 
+                    placeholder="Write your message here..." 
+                    className="min-h-[150px]"
+                    value={form.message}
+                    onChange={e => setForm({...form, message: e.target.value})}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -126,12 +191,21 @@ export default function NewCampaignPage() {
                     <Label>Send Date</Label>
                     <div className="relative">
                       <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <Input type="date" className="pl-10" />
+                      <Input 
+                        type="date" 
+                        className="pl-10" 
+                        value={form.sendDate}
+                        onChange={e => setForm({...form, sendDate: e.target.value})}
+                      />
                     </div>
                   </div>
                   <div className="flex-1 space-y-2">
                     <Label>Send Time</Label>
-                    <Input type="time" />
+                    <Input 
+                      type="time"
+                      value={form.sendTime}
+                      onChange={e => setForm({...form, sendTime: e.target.value})}
+                    />
                   </div>
                 </div>
               </CardContent>

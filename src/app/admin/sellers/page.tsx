@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { 
   Plus, 
@@ -34,13 +34,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-const SELLERS = [
-  { id: "s1", name: "Fashion Nova", owner: "Sarah Jenkins", email: "sarah@fashionnova.com", status: "active",   sales: "$45,200", products: 124, joined: "Jan 12, 2024" },
-  { id: "s2", name: "Tech Giant",   owner: "John Smith",    email: "john@techgiant.com",   status: "active",   sales: "$12,800", products: 45,  joined: "Feb 05, 2024" },
-  { id: "s3", name: "Eco Living",   owner: "Emma Green",    email: "emma@ecoliving.com",   status: "pending",  sales: "$0",      products: 0,   joined: "May 10, 2024" },
-  { id: "s4", name: "Modern Home",  owner: "David Blue",    email: "david@modernhome.com", status: "suspended", sales: "$2,400",  products: 12,  joined: "Dec 20, 2023" },
-  { id: "s5", name: "Urban Style",  owner: "Lisa Ray",      email: "lisa@urbanstyle.com",  status: "active",   sales: "$8,900",  products: 32,  joined: "Mar 15, 2024" },
-];
+type Seller = {
+  id: string;
+  name: string;
+  owner: string;
+  email: string;
+  phone: string | null;
+  status: string;
+  sales: number;
+  products: number;
+  createdAt: string;
+};
 
 const STATUS_MAP: Record<string, { label: string; icon: any; className: string }> = {
   active:    { label: "Active",    icon: CheckCircle2, className: "bg-emerald-100 text-emerald-700" },
@@ -49,13 +53,27 @@ const STATUS_MAP: Record<string, { label: string; icon: any; className: string }
 };
 
 export default function SellersPage() {
+  const [sellers, setSellers] = useState<Seller[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
 
-  const filtered = SELLERS.filter(s => 
+  useEffect(() => {
+    fetch("/api/v1/sellers")
+      .then(r => r.json())
+      .then(({ data }) => setSellers(data || []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = sellers.filter(s => 
     (filter === "all" || s.status === filter) &&
-    (s.name.toLowerCase().includes(search.toLowerCase()) || s.owner.toLowerCase().includes(search.toLowerCase()))
+    (s.name?.toLowerCase().includes(search.toLowerCase()) || s.owner?.toLowerCase().includes(search.toLowerCase()))
   );
+
+  const totalSellers = sellers.length;
+  const activeCount = sellers.filter(s => s.status === "active").length;
+  const totalSales = sellers.reduce((sum, s) => sum + (s.sales || 0), 0);
 
   return (
     <AdminLayout>
@@ -74,10 +92,10 @@ export default function SellersPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <StatCard title="Total Sellers" value={SELLERS.length.toString()} icon={Store} color="text-slate-700 bg-slate-100" />
-          <StatCard title="Active" value="128" icon={CheckCircle2} color="text-emerald-700 bg-emerald-100" />
-          <StatCard title="Pending Review" value="5" icon={Clock} color="text-amber-700 bg-amber-100" />
-          <StatCard title="Total Commission" value="$4,250" icon={TrendingUp} color="text-blue-700 bg-blue-100" />
+          <StatCard title="Total Sellers" value={loading ? "—" : String(totalSellers)} icon={Store} color="text-slate-700 bg-slate-100" />
+          <StatCard title="Active" value={loading ? "—" : String(activeCount)} icon={CheckCircle2} color="text-emerald-700 bg-emerald-100" />
+          <StatCard title="Pending Review" value={loading ? "—" : String(sellers.filter(s => s.status === "pending").length)} icon={Clock} color="text-amber-700 bg-amber-100" />
+          <StatCard title="Total Sales" value={loading ? "—" : `$${totalSales.toLocaleString()}`} icon={TrendingUp} color="text-blue-700 bg-blue-100" />
         </div>
 
         {/* Sellers Table */}
@@ -120,47 +138,64 @@ export default function SellersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((seller) => (
-                <TableRow key={seller.id} className="group hover:bg-slate-50/50">
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
-                        <Store className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-slate-900">{seller.name}</p>
-                        <p className="text-xs text-slate-500">{seller.owner} • {seller.email}</p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={cn("text-[10px] uppercase font-bold tracking-widest shadow-none", STATUS_MAP[seller.status].className)}>
-                      <span className="flex items-center gap-1">
-                        {React.createElement(STATUS_MAP[seller.status].icon, { className: "w-3 h-3" })}
-                        {STATUS_MAP[seller.status].label}
-                      </span>
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm font-medium text-slate-600">{seller.products}</TableCell>
-                  <TableCell className="text-sm font-bold text-slate-900">{seller.sales}</TableCell>
-                  <TableCell className="text-sm text-slate-500">{seller.joined}</TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="w-8 h-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>View Dashboard</DropdownMenuItem>
-                        <DropdownMenuItem>Manage Products</DropdownMenuItem>
-                        <DropdownMenuItem>Payout Settings</DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">Suspend Account</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-10 text-slate-400">
+                    Loading sellers...
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : filtered.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-10">
+                    <div className="flex flex-col items-center">
+                      <Store className="w-10 h-10 text-slate-300 mb-2" />
+                      <p className="text-slate-500">No sellers found</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filtered.map((seller) => (
+                  <TableRow key={seller.id} className="group hover:bg-slate-50/50">
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
+                          <Store className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-900">{seller.name}</p>
+                          <p className="text-xs text-slate-500">{seller.owner} • {seller.email}</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={cn("text-[10px] uppercase font-bold tracking-widest shadow-none", STATUS_MAP[seller.status]?.className || "bg-slate-100 text-slate-500")}>
+                        <span className="flex items-center gap-1">
+                          {React.createElement(STATUS_MAP[seller.status]?.icon || Clock, { className: "w-3 h-3" })}
+                          {STATUS_MAP[seller.status]?.label || seller.status}
+                        </span>
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm font-medium text-slate-600">{seller.products || 0}</TableCell>
+                    <TableCell className="text-sm font-bold text-slate-900">${(seller.sales || 0).toLocaleString()}</TableCell>
+                    <TableCell className="text-sm text-slate-500">{seller.createdAt ? new Date(seller.createdAt).toLocaleDateString() : "—"}</TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="w-8 h-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>View Dashboard</DropdownMenuItem>
+                          <DropdownMenuItem>Manage Products</DropdownMenuItem>
+                          <DropdownMenuItem>Payout Settings</DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-600">Suspend Account</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </Card>
